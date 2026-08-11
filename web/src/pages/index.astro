@@ -1,0 +1,19 @@
+---
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CrossCraft.io</title>
+    <script>
+      import 'htmx.org';
+    </script>
+  </head>
+  <body>
+    <h1>CrossCraft.io</h1>
+    <button hx-get="http://localhost:3000/api/hello" hx-target="#message" hx-swap="innerHTML">
+      Say hello
+    </button>
+    <div id="message"></div>
+  </body>
+</html>
