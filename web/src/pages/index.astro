@@ -1,5 +1,7 @@
 ---
+import { Image } from 'astro:assets';
 import Layout from '../layouts/Layout.astro';
+import icon from '../assets/icon-nobg-hq.png';
 ---
 
 <Layout title="CrossCraft" pageTitle="HOME" activeNav="home">
@@ -14,37 +16,37 @@ import Layout from '../layouts/Layout.astro';
   </div>
 
   <p>
-    <b>CrossCraft</b> is an open-source Minecraft reimplementation:
+    <b>CrossCraft</b> is an open-source, clean-room reimplementation of Minecraft Classic 0.30.
   </p>
-  <ul style="list-style-type: none;">
-    <li>🎮 Faithful, Version by Version</li>
-    <li>🌍 Native on PSP, 3DS, Switch &amp; PC</li>
-    <li>⚡ Powered by Zig and Aether</li>
-  </ul>
 
   <hr />
 
-  <h3>Features</h3>
+  <h3>New in v1.1</h3>
   <ul>
-    <li>Multiplayer</li>
-    <li>World</li>
-    <li>Block Physics</li>
-    <li>Persistence</li>
-    <li>Configuration</li>
-    <li>Server Protections</li>
-    <li>PSP Support</li>
+    <li><b>Three new platforms</b> — Nintendo 3DS, Nintendo Switch, and WASM/WebGL in the browser</li>
+    <li><b>ClassicWorld saves</b> — compatible with ClassiCube; existing worlds upgrade automatically</li>
+    <li><b>Rebuilt input</b> — configurable controls on PC, PSP, and 3DS, plus middle-click block picking</li>
+    <li><b>Rebuilt UI</b> — proper sliders and buttons, chat text wrapping</li>
+    <li><b>Save management</b> — multi-save browser, world creation menu, multiplayer world dumps</li>
+    <li><b>Faster everywhere</b> — asynchronous world saves and quicker chunk meshing</li>
+    <li><b>macOS audio</b> — enabled at last</li>
   </ul>
 
-  <img slot="sidebar" src="/assets/icon-nobg-hq.png" alt="CrossCraft icon" />
+  <Image slot="sidebar" src={icon} alt="CrossCraft icon" loading="eager" />
+  <ul slot="sidebar" style="list-style-type: none;">
+    <li>Faithful, Version by Version</li>
+    <li>PC, PSP, 3DS, Switch &amp; Web</li>
+    <li>Powered by Zig and Aether</li>
+  </ul>
   <div slot="sidebar">
-    <p class="version-label">CrossCraft v1.0.1<br />Drizzle</p>
+    <p class="version-label">CrossCraft Classic v1.1</p>
     <a
-      href="https://github.com/CrossCraft/CrossCraft/releases/tag/classic-client%2Fv1.0.1"
+      href="https://github.com/CrossCraft/CrossCraft/releases/tag/classic-client%2Fv1.1"
       class="mc-button mc-green button"
       target="_blank"
       rel="noopener">Download Client</a
     >
-    <p class="version-label">Classic Server v1.1.0<br />The Operator's Update</p>
+    <p class="version-label">Classic Server v1.1</p>
     <a
       href="https://github.com/CrossCraft/CrossCraft/releases/tag/classic-server%2Fv1.1.0"
       class="mc-button mc-green button"

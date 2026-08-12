@@ -20,7 +20,7 @@ body {
   background-size: cover, 64px;
   background-position: center, center;
 
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1.6;
   letter-spacing: 0.4px;
   font-family: 'VT323', 'Courier New', monospace;
@@ -361,7 +361,7 @@ p {
 
 @media only screen and (max-width: 825px) {
   body {
-    font-size: 24px;
+    font-size: 20px;
   }
 
   /* extend the bedrock strip down so the fixed bottom nav
