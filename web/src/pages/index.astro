@@ -1,19 +1,55 @@
 ---
+import Layout from '../layouts/Layout.astro';
 ---
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CrossCraft.io</title>
-    <script>
-      import 'htmx.org';
-    </script>
-  </head>
-  <body>
-    <h1>CrossCraft.io</h1>
-    <button hx-get="http://localhost:3000/api/hello" hx-target="#message" hx-swap="innerHTML">
-      Say hello
-    </button>
-    <div id="message"></div>
-  </body>
-</html>
+
+<Layout title="CrossCraft" pageTitle="HOME" activeNav="home">
+  <div class="video-embed">
+    <iframe
+      src="https://www.youtube.com/embed/qyBIBr1kWlI"
+      title="YouTube video player"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allowfullscreen></iframe>
+  </div>
+
+  <p>
+    <b>CrossCraft</b> is an open-source Minecraft reimplementation:
+  </p>
+  <ul style="list-style-type: none;">
+    <li>🎮 Faithful, Version by Version</li>
+    <li>🌍 Native on PSP, 3DS, Switch &amp; PC</li>
+    <li>⚡ Powered by Zig and Aether</li>
+  </ul>
+
+  <hr />
+
+  <h3>Features</h3>
+  <ul>
+    <li>Multiplayer</li>
+    <li>World</li>
+    <li>Block Physics</li>
+    <li>Persistence</li>
+    <li>Configuration</li>
+    <li>Server Protections</li>
+    <li>PSP Support</li>
+  </ul>
+
+  <img slot="sidebar" src="/assets/icon-nobg-hq.png" alt="CrossCraft icon" />
+  <div slot="sidebar">
+    <p class="version-label">CrossCraft v1.0.1<br />Drizzle</p>
+    <a
+      href="https://github.com/CrossCraft/CrossCraft/releases/tag/classic-client%2Fv1.0.1"
+      class="mc-button mc-green button"
+      target="_blank"
+      rel="noopener">Download Client</a
+    >
+    <p class="version-label">Classic Server v1.1.0<br />The Operator's Update</p>
+    <a
+      href="https://github.com/CrossCraft/CrossCraft/releases/tag/classic-server%2Fv1.1.0"
+      class="mc-button mc-green button"
+      target="_blank"
+      rel="noopener">Download Server</a
+    >
+  </div>
+</Layout>

@@ -1,0 +1,123 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="CrossCraft — About" pageTitle="ABOUT" activeNav="about">
+  <p>
+    <b>CrossCraft</b> is a monorepo of clean-room Minecraft reimplementations written in
+    <b>Zig</b> on top of the custom <b>Aether engine</b>. It is developed in phases, one
+    classic-era version at a time.
+  </p>
+  <p>
+    The current phase is <b>Classic (0.30)</b>, now at <b>v1.0</b>. Each completed phase stays in
+    the tree as a first-class build. Shared code lives in shared modules; version-specific behavior
+    lives behind branching code paths so that improvements made while developing a newer phase flow
+    back into older ones automatically.
+  </p>
+  <p>Concretely:</p>
+  <ul>
+    <li>
+      <b>An audio optimization</b> made while working on Survival Test is immediately available to
+      Classic. Cut a new Classic build and players get it.
+    </li>
+    <li>
+      A new <b>Aether</b> target plus minimal integration work brings every existing phase to that
+      platform at once.
+    </li>
+    <li>
+      <b>Bug fixes</b> in shared systems (worldgen primitives, networking, rendering, allocators)
+      benefit every phase in the repo.
+    </li>
+  </ul>
+  <p>
+    This is the point of the monorepo: keep every implementation alive and improving as the project
+    moves forward, instead of forking and abandoning.
+  </p>
+
+  <hr />
+
+  <h1>Classic v1.0</h1>
+  <p>
+    <b>Classic v1.0</b> is a feature-complete, clean-room reimplementation of
+    <b>Minecraft Classic 0.30</b>.
+  </p>
+  <ul>
+    <li>
+      <b>Classic 0.30 protocol</b> — full client and server implementation, compatible with the
+      public Classic protocol.
+    </li>
+    <li>
+      <b>Singleplayer and multiplayer</b> — singleplayer runs an in-process server behind a
+      FakeConn; there is no second code path.
+    </li>
+    <li>
+      <b>Desktop + PSP</b> — Linux, macOS, Windows, and PSP (both PSP-1000 and PSP-2000+ memory
+      profiles) ship from the same tree.
+    </li>
+    <li>
+      <b>Fixed-point worldgen and rendering</b> — deterministic across targets, fast on hardware
+      without an FPU.
+    </li>
+    <li>
+      <b>Zero post-init allocation on the server.</b> Minimal hot-path allocation on the client.
+    </li>
+    <li>
+      <b>Full in-game settings UI</b> — options persist in a JSON file and are wired into every
+      system.
+    </li>
+  </ul>
+
+  <hr />
+
+  <h1>Classic Server v1.1</h1>
+  <p>
+    v1.1 is the smallest set of administrative tooling that lets the server stand up to the open
+    internet without immediately being cooked. The headline is the persistent player database and
+    the console; the rest is plumbing that had to land alongside it.
+  </p>
+
+  <hr />
+
+  <h1>Legal Notice</h1>
+  <p>
+    <b>NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.</b
+    >
+  </p>
+  <p>
+    CrossCraft is an independent, open-source project. It is not affiliated with, endorsed by, or
+    sponsored by Mojang AB, Microsoft, Sony, Nintendo, or any other entity. Minecraft is a trademark
+    of Mojang Synergies AB.
+  </p>
+  <p>
+    This project does not use or distribute any source code, textures, sounds, or other assets from
+    Minecraft. All assets are original or third-party CC0 / CC-BY-SA licensed works, with
+    attribution provided in
+    <a
+      href="https://github.com/CrossCraft/CrossCraft/blob/main/THIRD_PARTY_NOTICES.md"
+      target="_blank"
+      rel="noopener">THIRD_PARTY_NOTICES.md</a
+    >.
+  </p>
+  <p>
+    Network protocol compatibility is based on publicly available documentation and independent
+    clean-room reverse engineering.
+  </p>
+  <p>
+    Console builds rely on existing homebrew environments. CrossCraft does not distribute or require
+    any proprietary console firmware, BIOS, or copyrighted system software. Users are responsible
+    for compliance with their local laws and device terms of service.
+  </p>
+  <p>
+    CrossCraft is provided "as-is" without warranty and is intended for educational and
+    non-commercial purposes.
+  </p>
+  <p>
+    See
+    <a
+      href="https://github.com/CrossCraft/CrossCraft/blob/main/LICENSE"
+      target="_blank"
+      rel="noopener">LICENSE</a
+    >
+    for the full LGPL-2.1 terms.
+  </p>
+</Layout>

@@ -1,0 +1,440 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+
+  background-image:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.8) 100%),
+    url('/assets/stone.png');
+  background-size: cover, 64px;
+  background-position: center, center;
+
+  font-size: 24px;
+  line-height: 1.6;
+  letter-spacing: 0.4px;
+  font-family: 'VT323', 'Courier New', monospace;
+  color: #e8e8e8;
+}
+
+h1,
+h2,
+h3 {
+  color: white;
+  font-family: 'Press Start 2P', monospace;
+  text-shadow: 3px 3px 0 #3f3f3f;
+  line-height: 1.6;
+}
+
+h1 {
+  font-size: 22px;
+}
+
+h3 {
+  font-size: 16px;
+}
+
+b {
+  color: white;
+}
+
+a {
+  color: #7ee05a;
+}
+
+a:hover {
+  color: #aaff8a;
+}
+
+ul {
+  padding-left: 24px;
+}
+
+li {
+  margin-bottom: 6px;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid #000;
+  border-bottom: 2px solid #565656;
+  margin: 24px 0;
+}
+
+p {
+  margin: 16px 0;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
+  padding-top: 40px;
+  /* lock the band to a constant aspect ratio so `cover`
+     shows the same slice of the scene at any window width */
+  min-height: 12vw;
+
+  background-image: url('/assets/banner-hq-blur.png');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+#logo {
+  width: 80%;
+  max-width: 720px;
+  height: auto;
+  display: block;
+  margin: 0 auto 24px;
+}
+
+.nav {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 30px;
+}
+
+.nav-tab {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+/* ── Minecraft-style beveled surfaces ───────────────── */
+
+.mc-surface {
+  background-color: #6f6f6f;
+  border: 2px solid #000;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.35),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.mc-button {
+  background-color: #6f6f6f;
+  border: 2px solid #000;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.35),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.45);
+  color: white;
+  text-shadow: 2px 2px 0 #3f3f3f;
+  font-family: 'Press Start 2P', monospace;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.mc-button:hover {
+  background-color: #7e7ee0;
+  color: #ffffa0;
+}
+
+.mc-button:active {
+  box-shadow:
+    inset -2px -2px 0 rgba(255, 255, 255, 0.35),
+    inset 2px 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.mc-green {
+  background-color: #84ba56;
+}
+
+.mc-green:hover {
+  background-color: #9bd46b;
+  color: white;
+}
+
+.nav-tab {
+  background-color: #84ba56;
+  border: 2px solid #000;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.35),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 13px;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: white;
+  text-shadow: 2px 2px 0 #3f3f3f;
+  padding: 12px 16px;
+}
+
+.nav-btn i {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.nav-btn:hover {
+  color: #ffffa0;
+}
+
+.nav-btn.active {
+  color: #ffffa0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.nav-toggle {
+  display: none;
+}
+
+/* ── Page title strip ───────────────────────────────── */
+
+.page_title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 28px;
+  color: white;
+  text-shadow: 4px 4px 0 #3f3f3f;
+
+  background-image: url('/assets/bg_title.png');
+  background-repeat: repeat-x;
+  background-position: center top;
+  padding: 30px 0;
+  border-top: 2px solid #000;
+  border-bottom: 2px solid #000;
+}
+
+/* ── Content ────────────────────────────────────────── */
+
+.content {
+  width: 96%;
+  max-width: 1200px;
+  margin: 32px auto;
+
+  background-color: rgba(28, 28, 28, 0.92);
+  border: 2px solid #000;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.18),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.6);
+
+  overflow: hidden;
+}
+
+.content::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+.main {
+  float: left;
+  width: 75%;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.main img {
+  display: block;
+  margin: 0 auto;
+  max-width: 80%;
+  border: 2px solid #000;
+}
+
+.side-right {
+  float: right;
+  width: 25%;
+  padding: 24px 24px 24px 0;
+  text-align: center;
+}
+
+.side-right img {
+  display: block;
+  margin: 0 auto 16px;
+  max-width: 100%;
+  height: auto;
+  border: 2px solid #000;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.25),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.no-sidebar .main {
+  float: none;
+  width: auto;
+}
+
+.video-embed {
+  position: relative;
+  height: 0;
+  padding-bottom: 56.25%;
+  overflow: hidden;
+  border: 2px solid #000;
+}
+
+.video-embed iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.button {
+  display: block;
+  max-width: 400px;
+  margin: 12px auto;
+  padding: 14px 12px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.version-label {
+  font-size: 22px;
+  color: white;
+  margin: 16px 0 4px;
+}
+
+/* ── Footer ─────────────────────────────────────────── */
+
+.footer {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* no background of its own: the body's stone continues straight
+     through the footer's top edge, so there is no seam to hide */
+  color: white;
+  text-shadow: 2px 2px 0 #000;
+  text-align: center;
+  padding: 8px 16px;
+}
+
+/* bedrock fades in from the footer's top edge downward, crossfading
+   the stone into bedrock inside the footer itself; sits behind the
+   footer text but above the body's stone */
+.footer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.95) 100%),
+    url('/assets/rock.png');
+  background-size: cover, 64px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media only screen and (max-width: 825px) {
+  body {
+    font-size: 24px;
+  }
+
+  /* extend the bedrock strip down so the fixed bottom nav
+     sits on bedrock instead of covering the page */
+  .footer {
+    padding-bottom: 100px;
+  }
+
+  #logo {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .header {
+    padding: 30px 0;
+  }
+
+  .page_title {
+    font-size: 18px;
+  }
+
+  .content {
+    width: 95%;
+  }
+
+  .main,
+  .side-right {
+    float: none;
+    width: 100%;
+    padding: 16px;
+  }
+
+  .side-right img {
+    max-width: 50%;
+  }
+
+  .nav {
+    padding-bottom: 0;
+  }
+
+  .nav-tab {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    margin: 0;
+    z-index: 1000;
+    flex-direction: column;
+  }
+
+  .nav-toggle {
+    display: block;
+    width: 100%;
+    font-size: 24px;
+    padding: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .nav-links.open {
+    display: flex;
+  }
+
+  .nav-btn {
+    width: 100%;
+    padding: 14px 12px;
+  }
+}

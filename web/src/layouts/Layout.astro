@@ -1,0 +1,90 @@
+---
+interface Props {
+  title: string;
+  pageTitle: string;
+  activeNav?: string;
+}
+
+const { title, pageTitle, activeNav = '' } = Astro.props;
+
+const navLinks = [
+  { label: 'Home', href: '/', id: 'home' },
+  { label: 'Download', href: 'https://github.com/CrossCraft/CrossCraft/releases', id: 'download', external: true },
+  { label: 'Server', href: '#', id: 'server' },
+  { label: 'Github', href: 'https://github.com/CrossCraft/CrossCraft', id: 'github', external: true, icon: 'github' },
+  { label: 'Discord', href: 'https://discord.gg/YvAK3B2BbE', id: 'discord', external: true, icon: 'discord' },
+  { label: 'About', href: '/about', id: 'about' },
+];
+---
+
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <link rel="icon" type="image/png" href="/assets/icon-nobg-hq.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
+    />
+  </head>
+  <body>
+    <header class="header">
+      <img id="logo" src="/assets/logo.png" alt="CrossCraft logo" />
+      <nav class="nav">
+        <div class="nav-tab">
+          <div class="nav-links" id="nav-links">
+            {
+              navLinks.map((link) => (
+                <a
+                  class:list={['nav-btn', { active: link.id === activeNav }]}
+                  href={link.href}
+                  {...(link.external ? { target: '_blank', rel: 'noopener' } : {})}
+                >
+                  {link.label}
+                  {link.icon && <i class={`bi bi-${link.icon}`} />}
+                </a>
+              ))
+            }
+          </div>
+          <button class="nav-btn nav-toggle" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+        </div>
+      </nav>
+    </header>
+
+    <div class="page_title">{pageTitle}</div>
+
+    <main class:list={['content', { 'no-sidebar': !Astro.slots.has('sidebar') }]}>
+      <div class="main">
+        <slot />
+      </div>
+      {
+        Astro.slots.has('sidebar') && (
+          <aside class="side-right">
+            <slot name="sidebar" />
+          </aside>
+        )
+      }
+    </main>
+
+    <footer class="footer">
+      <p>© 2026 The CrossCraft Team — Not affiliated with Mojang or Microsoft</p>
+    </footer>
+
+    <script>
+      const toggle = document.getElementById('nav-toggle');
+      const links = document.getElementById('nav-links');
+      toggle?.addEventListener('click', () => links?.classList.toggle('open'));
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/main.css';
+</style>
