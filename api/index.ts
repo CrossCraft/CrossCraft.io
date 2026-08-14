@@ -1,12 +1,26 @@
-import { Elysia } from 'elysia';
-import { node } from '@elysiajs/node';
-import { cors } from '@elysiajs/cors';
+import { createApp, readPort, readTrustProxy } from './app.js';
 
-const port = 3000;
+const port = readPort();
+const trustProxy = readTrustProxy();
 
-new Elysia({ adapter: node() })
-  .use(cors())
-  .get('/api/hello', () => '<p>Hello from Elysia!</p>')
-  .listen(port);
+const app = createApp();
+let ready: Promise<unknown> | undefined;
 
-console.log(`Elysia server running at http://localhost:${port}`);
+app.listen({
+  port,
+  trustProxy,
+} as Parameters<typeof app.listen>[0], (server) => {
+  ready = (server as unknown as {
+    raw?: {
+      ready?: () => Promise<unknown>;
+    };
+  }).raw?.ready?.();
+});
+
+try {
+  await ready;
+  console.log(`Elysia server running at http://localhost:${port}`);
+} catch (error) {
+  console.error(`Elysia failed to listen on port ${port}`, error);
+  process.exitCode = 1;
+}
