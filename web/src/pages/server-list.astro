@@ -1,0 +1,153 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="CrossCraft — Server List" pageTitle="SERVER LIST" activeNav="server-list">
+  <section class="server-list" data-server-list aria-busy="true">
+    <div class="server-list-toolbar">
+      <div>
+        <h2>Public Servers</h2>
+        <p>Live servers currently registered with the CrossCraft directory.</p>
+      </div>
+      <button class="mc-button server-refresh" type="button" data-server-refresh>
+        Refresh
+      </button>
+    </div>
+
+    <p class="server-list-status" data-server-list-status role="status" aria-live="polite">
+      Loading servers…
+    </p>
+
+    <div class="server-table-wrap">
+      <table class="server-table" data-server-table hidden>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Address</th>
+            <th scope="col">Players</th>
+            <th scope="col">Version</th>
+            <th scope="col">Last heartbeat</th>
+          </tr>
+        </thead>
+        <tbody data-server-list-body></tbody>
+      </table>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  interface ServerRecord {
+    url: string;
+    name: string;
+    max: number;
+    version: number;
+    users: number;
+    lastSeen: string;
+  }
+
+  const container = document.querySelector<HTMLElement>('[data-server-list]');
+  const status = document.querySelector<HTMLElement>('[data-server-list-status]');
+  const table = document.querySelector<HTMLTableElement>('[data-server-table]');
+  const body = document.querySelector<HTMLTableSectionElement>('[data-server-list-body]');
+  const refresh = document.querySelector<HTMLButtonElement>('[data-server-refresh]');
+
+  function isServerRecord(value: unknown): value is ServerRecord {
+    if (!value || typeof value !== 'object') return false;
+
+    const record = value as Record<string, unknown>;
+    return typeof record.url === 'string'
+      && typeof record.name === 'string'
+      && typeof record.max === 'number'
+      && Number.isFinite(record.max)
+      && typeof record.version === 'number'
+      && Number.isFinite(record.version)
+      && typeof record.users === 'number'
+      && Number.isFinite(record.users)
+      && typeof record.lastSeen === 'string';
+  }
+
+  function cell(value: string): HTMLTableCellElement {
+    const element = document.createElement('td');
+    element.textContent = value;
+    return element;
+  }
+
+  function serverLink(url: string): HTMLTableCellElement {
+    const element = document.createElement('td');
+    const link = document.createElement('a');
+
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('unsupported protocol');
+      link.href = parsed.href;
+      link.textContent = parsed.host;
+      link.target = '_blank';
+      link.rel = 'noopener';
+    } catch {
+      link.textContent = url;
+    }
+
+    element.append(link);
+    return element;
+  }
+
+  function formatLastSeen(value: string): string {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleTimeString();
+  }
+
+  function renderServers(servers: ServerRecord[]): void {
+    if (!body || !table || !status) return;
+
+    body.replaceChildren();
+    for (const server of servers) {
+      const row = document.createElement('tr');
+      row.append(
+        cell(server.name),
+        serverLink(server.url),
+        cell(`${server.users}/${server.max}`),
+        cell(String(server.version)),
+        cell(formatLastSeen(server.lastSeen)),
+      );
+      body.append(row);
+    }
+
+    table.hidden = servers.length === 0;
+    status.textContent = servers.length === 0
+      ? 'No public servers are online right now.'
+      : `${servers.length} public server${servers.length === 1 ? '' : 's'} online.`;
+  }
+
+  async function loadServers(): Promise<void> {
+    if (!container || !status || !table || !body) return;
+
+    container.setAttribute('aria-busy', 'true');
+    status.textContent = 'Loading servers…';
+    table.hidden = true;
+    body.replaceChildren();
+    if (refresh) refresh.disabled = true;
+
+    try {
+      const response = await fetch('/api/v1/list', {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error(`directory returned ${response.status}`);
+
+      const payload: unknown = await response.json();
+      if (!Array.isArray(payload) || !payload.every(isServerRecord)) {
+        throw new Error('directory returned an invalid response');
+      }
+
+      renderServers(payload);
+    } catch {
+      status.textContent = 'The server list is unavailable. Try again in a moment.';
+    } finally {
+      container.setAttribute('aria-busy', 'false');
+      if (refresh) refresh.disabled = false;
+    }
+  }
+
+  refresh?.addEventListener('click', loadServers);
+  loadServers();
+</script>
