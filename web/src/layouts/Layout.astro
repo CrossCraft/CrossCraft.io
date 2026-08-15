@@ -3,9 +3,18 @@ interface Props {
   title: string;
   pageTitle: string;
   activeNav?: string;
+  description?: string;
 }
 
-const { title, pageTitle, activeNav = '' } = Astro.props;
+const {
+  title,
+  pageTitle,
+  activeNav = '',
+  description = 'CrossCraft is an open-source, clean-room reimplementation of Minecraft Classic 0.30 for PC, PSP, 3DS, Switch, and the browser.',
+} = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImage = new URL('/assets/banner-hq.png', Astro.site);
 
 const navLinks = [
   { label: 'Home', href: '/', id: 'home' },
@@ -22,6 +31,22 @@ const navLinks = [
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+    <meta name="theme-color" content="#84ba56" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CrossCraft" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="720" />
+    <meta property="og:image:alt" content="CrossCraft banner" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <link rel="icon" type="image/png" href="/assets/icon-nobg-hq.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
