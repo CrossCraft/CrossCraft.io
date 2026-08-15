@@ -107,6 +107,11 @@ p {
   margin: 0 auto 24px;
 }
 
+.logo-link:focus-visible {
+  outline: 3px solid #ffffa0;
+  outline-offset: 4px;
+}
+
 .nav {
   width: 100%;
   max-width: 1200px;
