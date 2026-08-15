@@ -45,32 +45,25 @@ function request(app: TestApp, path: string, init?: RequestInit): Promise<Respon
   return app.handle(new Request(`http://directory.test${path}`, init));
 }
 
-function postHeartbeat(app: TestApp, body = fields()): Promise<Response> {
-  return request(app, '/api/v1/heartbeat', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/x-www-form-urlencoded',
-    },
-    body,
-  });
+function getHeartbeat(app: TestApp, query = fields()): Promise<Response> {
+  return request(app, `/api/v1/heartbeat?${query}`, { method: 'GET' });
 }
 
 describe('Minecraft Classic heartbeat API', () => {
-  it('accepts a form POST and returns the observed server URL', async () => {
+  it('accepts a heartbeat and returns the observed server URL', async () => {
     const { app } = setup();
 
-    const response = await postHeartbeat(app);
+    const response = await getHeartbeat(app);
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8');
     assert.equal(await response.text(), 'http://203.0.113.10:25565/');
   });
 
-  it('accepts a legacy GET heartbeat and URL-decodes fields', async () => {
+  it('URL-decodes heartbeat fields', async () => {
     const { app } = setup();
-    const query = fields({ name: 'Classic + Friends' });
 
-    const response = await request(app, `/api/v1/heartbeat?${query}`, { method: 'GET' });
+    const response = await getHeartbeat(app, fields({ name: 'Classic + Friends' }));
 
     assert.equal(response.status, 200);
     assert.equal(await response.text(), 'http://203.0.113.10:25565/');
@@ -80,14 +73,14 @@ describe('Minecraft Classic heartbeat API', () => {
     const { app } = setup();
 
     for (const value of ['true', 'TRUE', 'false', 'FALSE']) {
-      const response = await postHeartbeat(app, fields({ public: value }));
+      const response = await getHeartbeat(app, fields({ public: value }));
       assert.equal(response.status, 200, value);
     }
   });
 
   it('returns active public records with natural JSON types and no salt', async () => {
     const { app } = setup();
-    await postHeartbeat(app, fields({ users: '3' }));
+    await getHeartbeat(app, fields({ users: '3' }));
 
     const response = await request(app, '/api/v1/list', { method: 'GET' });
     const body = await response.json();
@@ -109,7 +102,7 @@ describe('Minecraft Classic heartbeat API', () => {
   it('returns a successful URL for private servers but excludes them from the list', async () => {
     const { app } = setup();
 
-    const heartbeat = await postHeartbeat(app, fields({ public: 'False' }));
+    const heartbeat = await getHeartbeat(app, fields({ public: 'False' }));
     const list = await request(app, '/api/v1/list', { method: 'GET' });
 
     assert.equal(heartbeat.status, 200);
@@ -119,7 +112,7 @@ describe('Minecraft Classic heartbeat API', () => {
 
   it('removes records only after more than 45 seconds without a heartbeat', async () => {
     const { app, setNow } = setup();
-    await postHeartbeat(app);
+    await getHeartbeat(app);
 
     setNow(45_000);
     let list = await request(app, '/api/v1/list', { method: 'GET' });
@@ -132,10 +125,10 @@ describe('Minecraft Classic heartbeat API', () => {
 
   it('updates a server record when the same address and port heartbeat again', async () => {
     const { app, setNow } = setup();
-    await postHeartbeat(app);
+    await getHeartbeat(app);
 
     setNow(1_000);
-    await postHeartbeat(app, fields({ name: 'Updated', max: '64', users: '4' }));
+    await getHeartbeat(app, fields({ name: 'Updated', max: '64', users: '4' }));
     const list = await request(app, '/api/v1/list', { method: 'GET' });
 
     assert.deepEqual(await list.json(), [{
@@ -153,9 +146,21 @@ describe('Minecraft Classic heartbeat API', () => {
   it('formats IPv6 source addresses as absolute URLs', async () => {
     const { app } = setup('2001:DB8::1');
 
-    const response = await postHeartbeat(app);
+    const response = await getHeartbeat(app);
 
     assert.equal(await response.text(), 'http://[2001:db8::1]:25565/');
+  });
+
+  it('rejects a heartbeat whose salt does not match the registered server', async () => {
+    const { app, setNow } = setup();
+
+    assert.equal((await getHeartbeat(app)).status, 200);
+    assert.equal((await getHeartbeat(app, fields({ salt: 'AAAAbbbbCCCCdddd' }))).status, 403);
+    assert.equal((await getHeartbeat(app)).status, 200);
+
+    // Once the record expires, a new owner may claim the address and port.
+    setNow(45_001);
+    assert.equal((await getHeartbeat(app, fields({ salt: 'AAAAbbbbCCCCdddd' }))).status, 200);
   });
 
   it('rejects invalid heartbeat fields with 400', async () => {
@@ -164,6 +169,7 @@ describe('Minecraft Classic heartbeat API', () => {
       ['port range', { port: '65536' }],
       ['max', { max: '-1' }],
       ['name', { name: '   ' }],
+      ['name too long', { name: 'x'.repeat(65) }],
       ['public', { public: 'yes' }],
       ['version', { version: '-1' }],
       ['salt', { salt: 'too-short' }],
@@ -172,34 +178,27 @@ describe('Minecraft Classic heartbeat API', () => {
 
     for (const [label, override] of invalidCases) {
       const { app } = setup();
-      const response = await postHeartbeat(app, fields(override));
+      const response = await getHeartbeat(app, fields(override));
       assert.equal(response.status, 400, label);
     }
   });
 
-  it('rejects missing, duplicate, and wrongly encoded fields', async () => {
+  it('rejects missing and duplicate fields', async () => {
     const { app } = setup();
 
-    let response = await postHeartbeat(app, fields({ port: '' }));
+    let response = await getHeartbeat(app, fields({ port: '' }));
     assert.equal(response.status, 400);
 
-    response = await postHeartbeat(app, `${fields()}&port=25566`);
-    assert.equal(response.status, 400);
-
-    response = await request(app, '/api/v1/heartbeat', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(defaultFields),
-    });
+    response = await getHeartbeat(app, `${fields()}&port=25566`);
     assert.equal(response.status, 400);
   });
 
-  it('returns 405 for unsupported methods and allows CORS preflight', async () => {
+  it('returns 405 for unsupported methods and scopes CORS to the site origin', async () => {
     const { app } = setup();
 
-    let response = await request(app, '/api/v1/heartbeat', { method: 'PUT' });
+    let response = await request(app, '/api/v1/heartbeat', { method: 'POST' });
     assert.equal(response.status, 405);
-    assert.equal(response.headers.get('allow'), 'GET, POST');
+    assert.equal(response.headers.get('allow'), 'GET');
 
     response = await request(app, '/api/v1/list', { method: 'POST' });
     assert.equal(response.status, 405);
@@ -208,11 +207,24 @@ describe('Minecraft Classic heartbeat API', () => {
     response = await request(app, '/api/v1/list', {
       method: 'OPTIONS',
       headers: {
-        origin: 'https://example.test',
+        origin: 'https://crosscraft.io',
         'access-control-request-method': 'GET',
       },
     });
     assert.equal(response.status, 204);
+    assert.equal(
+      response.headers.get('access-control-allow-origin'),
+      'https://crosscraft.io',
+    );
+
+    response = await request(app, '/api/v1/list', {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'https://example.test',
+        'access-control-request-method': 'GET',
+      },
+    });
+    assert.equal(response.headers.get('access-control-allow-origin'), null);
   });
 
   it('applies independent configurable per-IP rate limits', async () => {
@@ -221,9 +233,9 @@ describe('Minecraft Classic heartbeat API', () => {
       listPerMinute: 1,
     });
 
-    assert.equal((await postHeartbeat(app)).status, 200);
-    assert.equal((await postHeartbeat(app)).status, 200);
-    let response = await postHeartbeat(app);
+    assert.equal((await getHeartbeat(app)).status, 200);
+    assert.equal((await getHeartbeat(app)).status, 200);
+    let response = await getHeartbeat(app);
     assert.equal(response.status, 429);
     assert.equal(response.headers.get('retry-after'), '60');
 
@@ -232,7 +244,7 @@ describe('Minecraft Classic heartbeat API', () => {
     assert.equal(response.status, 429);
 
     setNow(60_000);
-    assert.equal((await postHeartbeat(app)).status, 200);
+    assert.equal((await getHeartbeat(app)).status, 200);
   });
 });
 

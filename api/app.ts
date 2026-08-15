@@ -7,7 +7,8 @@ const HEARTBEAT_PATH = '/api/v1/heartbeat';
 const LIST_PATH = '/api/v1/list';
 const HEARTBEAT_TTL_MS = 45_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const FORM_CONTENT_TYPE = 'application/x-www-form-urlencoded';
+const MAX_NAME_LENGTH = 64;
+const ALLOWED_ORIGINS = ['https://crosscraft.io', 'https://www.crosscraft.io'];
 
 const DEFAULT_HEARTBEAT_RATE_LIMIT = 10;
 const DEFAULT_LIST_RATE_LIMIT = 60;
@@ -47,28 +48,26 @@ type Heartbeat = Omit<ServerListRecord, 'url' | 'lastSeen'> & {
   salt: string;
 };
 
-type StoredServer = Omit<Heartbeat, 'salt'> & {
+type StoredServer = Heartbeat & {
   address: string;
   url: string;
   lastSeen: number;
 };
 
-type RateLimitWindow = {
-  startedAt: number;
-  count: number;
-};
+type UpsertResult = 'joined' | 'updated' | 'conflict';
 
 class BadHeartbeatError extends Error {}
 
 class ServerRegistry {
   private readonly servers = new Map<string, StoredServer>();
 
-  upsert(server: StoredServer, now: number): boolean {
+  upsert(server: StoredServer, now: number): UpsertResult {
     this.prune(now);
     const key = this.key(server.address, server.port);
-    const joined = !this.servers.has(key);
+    const existing = this.servers.get(key);
+    if (existing && existing.salt !== server.salt) return 'conflict';
     this.servers.set(key, server);
-    return joined;
+    return existing ? 'updated' : 'joined';
   }
 
   list(now: number): ServerListRecord[] {
@@ -103,8 +102,9 @@ class ServerRegistry {
   }
 }
 
-class FixedWindowRateLimiter {
-  private readonly windows = new Map<string, RateLimitWindow>();
+class SlidingWindowRateLimiter {
+  private readonly hits = new Map<string, number[]>();
+  private lastSweep = 0;
 
   constructor(private readonly limit: number) {
     if (!Number.isSafeInteger(limit) || limit < 1) {
@@ -113,27 +113,31 @@ class FixedWindowRateLimiter {
   }
 
   consume(key: string, now: number): number | undefined {
-    const windowStart = Math.floor(now / RATE_LIMIT_WINDOW_MS) * RATE_LIMIT_WINDOW_MS;
-    const existing = this.windows.get(key);
-    const window = existing?.startedAt === windowStart
-      ? existing
-      : { startedAt: windowStart, count: 0 };
+    this.sweep(now);
 
-    if (window.count >= this.limit) {
-      return Math.max(1, Math.ceil((windowStart + RATE_LIMIT_WINDOW_MS - now) / 1000));
+    const cutoff = now - RATE_LIMIT_WINDOW_MS;
+    let hits = this.hits.get(key);
+    if (!hits) {
+      hits = [];
+      this.hits.set(key, hits);
+    }
+    while (hits.length > 0 && hits[0] <= cutoff) hits.shift();
+
+    if (hits.length >= this.limit) {
+      return Math.max(1, Math.ceil((hits[0] + RATE_LIMIT_WINDOW_MS - now) / 1000));
     }
 
-    window.count += 1;
-    this.windows.set(key, window);
-    this.prune(windowStart);
+    hits.push(now);
     return undefined;
   }
 
-  private prune(currentWindowStart: number): void {
-    for (const [key, window] of this.windows) {
-      if (window.startedAt < currentWindowStart - RATE_LIMIT_WINDOW_MS) {
-        this.windows.delete(key);
-      }
+  private sweep(now: number): void {
+    if (now - this.lastSweep < RATE_LIMIT_WINDOW_MS) return;
+    this.lastSweep = now;
+
+    const cutoff = now - RATE_LIMIT_WINDOW_MS;
+    for (const [key, hits] of this.hits) {
+      if (hits[hits.length - 1] <= cutoff) this.hits.delete(key);
     }
   }
 }
@@ -220,7 +224,9 @@ function parseHeartbeatFields(params: URLSearchParams): Heartbeat {
 
   const max = decimalField(params, 'max', 0);
   const name = requiredField(params, 'name').trim();
-  if (!name) throw new BadHeartbeatError('missing or invalid name');
+  if (!name || name.length > MAX_NAME_LENGTH) {
+    throw new BadHeartbeatError('missing or invalid name');
+  }
 
   const publicValue = requiredField(params, 'public').toLowerCase();
   if (publicValue !== 'true' && publicValue !== 'false') {
@@ -243,17 +249,6 @@ function parseHeartbeatFields(params: URLSearchParams): Heartbeat {
     salt,
     users,
   };
-}
-
-async function heartbeatParams(request: Request): Promise<URLSearchParams> {
-  if (request.method === 'GET') return new URL(request.url).searchParams;
-
-  const contentType = request.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase();
-  if (contentType !== FORM_CONTENT_TYPE) {
-    throw new BadHeartbeatError('content-type must be application/x-www-form-urlencoded');
-  }
-
-  return new URLSearchParams(await request.text());
 }
 
 function parsePositiveInteger(value: string | undefined, name: string, fallback: number): number {
@@ -321,12 +316,12 @@ export function createApp(options: ApiAppOptions = {}) {
   };
 
   const registry = new ServerRegistry();
-  const heartbeatLimiter = new FixedWindowRateLimiter(limits.heartbeatPerMinute);
-  const listLimiter = new FixedWindowRateLimiter(limits.listPerMinute);
+  const heartbeatLimiter = new SlidingWindowRateLimiter(limits.heartbeatPerMinute);
+  const listLimiter = new SlidingWindowRateLimiter(limits.listPerMinute);
 
   const resolveAddress = (request: Request): string | undefined => normalizeClientIp(clientIp(request));
 
-  const handleHeartbeat = async (request: Request): Promise<Response> => {
+  const handleHeartbeat = (request: Request): Response => {
     const address = resolveAddress(request);
     if (!address) return directoryFailure();
 
@@ -335,11 +330,11 @@ export function createApp(options: ApiAppOptions = {}) {
     if (retryAfter !== undefined) return rateLimitedResponse(retryAfter);
 
     try {
-      const heartbeat = parseHeartbeatFields(await heartbeatParams(request));
+      const heartbeat = parseHeartbeatFields(new URL(request.url).searchParams);
       const url = advertisedUrl(address, heartbeat.port);
-      const { salt: _salt, ...serverFields } = heartbeat;
-      const joined = registry.upsert({ ...serverFields, address, url, lastSeen: now }, now);
-      if (joined) {
+      const result = registry.upsert({ ...heartbeat, address, url, lastSeen: now }, now);
+      if (result === 'conflict') return responseText('salt mismatch', 403);
+      if (result === 'joined') {
         console.log(
           `[heartbeat] server joined: ${url} name=${JSON.stringify(heartbeat.name)} `
           + `players=${heartbeat.users}/${heartbeat.max} public=${heartbeat.public}`,
@@ -368,10 +363,10 @@ export function createApp(options: ApiAppOptions = {}) {
   };
 
   return new Elysia({ adapter: node() })
-    .use(cors())
+    .use(cors({ origin: ALLOWED_ORIGINS, credentials: false }))
     .all(HEARTBEAT_PATH, ({ request }) => {
-      if (request.method === 'GET' || request.method === 'POST') return handleHeartbeat(request);
-      return methodNotAllowed('GET, POST');
+      if (request.method === 'GET') return handleHeartbeat(request);
+      return methodNotAllowed('GET');
     })
     .all(LIST_PATH, ({ request }) => {
       if (request.method === 'GET') return handleList(request);
