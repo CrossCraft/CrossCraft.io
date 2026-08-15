@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=10"
+  },
   "workspaces": [
     "web",
     "api"
@@ -10,6 +14,6 @@
   "scripts": {
     "dev:web": "npm run dev -w web",
     "dev:api": "npm run dev -w api",
-    "build": "npm run build -w web"
+    "build": "npm run build --workspaces --if-present"
   }
 }
