@@ -135,7 +135,6 @@ import Layout from '../layouts/Layout.astro';
     try {
       const response = await fetch('/api/v1/list', {
         headers: { Accept: 'application/json' },
-        cache: 'no-store',
       });
       if (!response.ok) throw new Error(`directory returned ${response.status}`);
 

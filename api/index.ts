@@ -1,14 +1,12 @@
-import { createApp, readPort, readTrustProxy } from './app.js';
+import { createApp, readPort } from './app.js';
 
 const port = readPort();
-const trustProxy = readTrustProxy();
 
 const app = createApp();
 let ready: Promise<unknown> | undefined;
 
 app.listen({
   port,
-  trustProxy,
 } as Parameters<typeof app.listen>[0], (server) => {
   ready = (server as unknown as {
     raw?: {

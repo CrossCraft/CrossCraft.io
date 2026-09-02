@@ -22,6 +22,73 @@ type RequestWithClientIp = Request & {
 
 export type ClientIpResolver = (request: Request) => string | undefined;
 
+export type TrustProxySetting = false | 'loopback' | string[];
+
+const IPV4_CIDR = /^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/;
+
+function isIPv4Cidr(value: string): boolean {
+  const match = IPV4_CIDR.exec(value);
+  if (!match) return false;
+  return ipv4ToNumber(match[1]) !== undefined && Number(match[2]) <= 32;
+}
+
+function isLoopbackAddress(address: string): boolean {
+  return address === '::1' || address.startsWith('127.') || address.startsWith('::ffff:127.');
+}
+
+function ipv4ToNumber(address: string): number | undefined {
+  const octets = address.split('.');
+  if (octets.length !== 4) return undefined;
+
+  let value = 0;
+  for (const octet of octets) {
+    if (!DECIMAL_INTEGER.test(octet)) return undefined;
+    const parsed = Number(octet);
+    if (parsed > 255) return undefined;
+    value = value * 256 + parsed;
+  }
+  return value;
+}
+
+function ipv4CidrMatches(entry: string, address: string): boolean {
+  const separator = entry.indexOf('/');
+  const base = ipv4ToNumber(entry.slice(0, separator));
+  const candidate = ipv4ToNumber(address);
+  if (base === undefined || candidate === undefined) return false;
+
+  const prefix = Number(entry.slice(separator + 1));
+  const shift = 2 ** (32 - prefix);
+  return Math.floor(candidate / shift) === Math.floor(base / shift);
+}
+
+export function isTrustedProxy(trust: TrustProxySetting, address: string): boolean {
+  if (trust === false) return false;
+  if (trust === 'loopback') return isLoopbackAddress(address);
+
+  return trust.some((entry) => {
+    if (entry.includes('/')) return ipv4CidrMatches(entry, address);
+    return entry.toLowerCase() === address;
+  });
+}
+
+export function createClientIpResolver(trust: TrustProxySetting): ClientIpResolver {
+  return (request) => {
+    const remote = normalizeClientIp((request as RequestWithClientIp).ip);
+    if (!remote) return undefined;
+    if (!isTrustedProxy(trust, remote)) return remote;
+
+    const forwarded = request.headers.get('x-forwarded-for');
+    if (!forwarded) return remote;
+
+    const entries = forwarded.split(',').map((value) => normalizeClientIp(value));
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const candidate = entries[index];
+      if (candidate && !isTrustedProxy(trust, candidate)) return candidate;
+    }
+    return remote;
+  };
+}
+
 export interface RateLimits {
   heartbeatPerMinute: number;
   listPerMinute: number;
@@ -30,6 +97,7 @@ export interface RateLimits {
 export interface ApiAppOptions {
   clock?: () => number;
   clientIp?: ClientIpResolver;
+  trustProxy?: TrustProxySetting;
   rateLimits?: Partial<RateLimits>;
 }
 
@@ -142,10 +210,6 @@ class SlidingWindowRateLimiter {
   }
 }
 
-function defaultClientIp(request: Request): string | undefined {
-  return (request as RequestWithClientIp).ip;
-}
-
 function normalizeClientIp(value: string | undefined): string | undefined {
   if (!value) return undefined;
 
@@ -172,6 +236,8 @@ function responseText(body: string, status = 200, extraHeaders: Record<string, s
     status,
     headers: {
       'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
       ...extraHeaders,
     },
   });
@@ -182,6 +248,8 @@ function responseJson(body: unknown): Response {
     status: 200,
     headers: {
       'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'public, max-age=10',
+      'x-content-type-options': 'nosniff',
     },
   });
 }
@@ -278,8 +346,6 @@ export function readRateLimits(env: NodeJS.ProcessEnv = process.env): RateLimits
   };
 }
 
-export type TrustProxySetting = false | 'loopback' | string[];
-
 export function readTrustProxy(value = process.env.TRUST_PROXY): TrustProxySetting {
   if (value === undefined || value.trim() === '' || value.trim().toLowerCase() === 'false') {
     return false;
@@ -292,8 +358,8 @@ export function readTrustProxy(value = process.env.TRUST_PROXY): TrustProxySetti
   }
 
   const addresses = value.split(',').map((item) => item.trim()).filter(Boolean);
-  if (!addresses.length || addresses.some((address) => isIP(address) === 0)) {
-    throw new Error('TRUST_PROXY must be loopback or a comma-separated proxy IP allowlist');
+  if (!addresses.length || addresses.some((address) => isIP(address) === 0 && !isIPv4Cidr(address))) {
+    throw new Error('TRUST_PROXY must be loopback, an IPv4 CIDR, or comma-separated proxy IP allowlist');
   }
 
   return [...new Set(addresses)];
@@ -308,7 +374,8 @@ export function readPort(value = process.env.PORT): number {
 
 export function createApp(options: ApiAppOptions = {}) {
   const clock = options.clock ?? Date.now;
-  const clientIp = options.clientIp ?? defaultClientIp;
+  const trustProxy = options.trustProxy ?? readTrustProxy();
+  const clientIp = options.clientIp ?? createClientIpResolver(trustProxy);
   const configuredLimits = readRateLimits();
   const limits: RateLimits = {
     heartbeatPerMinute: options.rateLimits?.heartbeatPerMinute ?? configuredLimits.heartbeatPerMinute,
@@ -363,7 +430,12 @@ export function createApp(options: ApiAppOptions = {}) {
   };
 
   return new Elysia({ adapter: node() })
-    .use(cors({ origin: ALLOWED_ORIGINS, credentials: false }))
+    .use(cors({
+      origin: ALLOWED_ORIGINS,
+      credentials: false,
+      allowedHeaders: ['accept', 'content-type'],
+      maxAge: 600,
+    }))
     .all(HEARTBEAT_PATH, ({ request }) => {
       if (request.method === 'GET') return handleHeartbeat(request);
       return methodNotAllowed('GET');

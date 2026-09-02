@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import {
   createApp,
+  createClientIpResolver,
   readPort,
   readRateLimits,
   readTrustProxy,
@@ -57,6 +58,8 @@ describe('Minecraft Classic heartbeat API', () => {
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8');
+    assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.equal(await response.text(), 'http://203.0.113.10:25565/');
   });
 
@@ -86,6 +89,8 @@ describe('Minecraft Classic heartbeat API', () => {
     const body = await response.json();
 
     assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'public, max-age=10');
+    assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     assert.deepEqual(body, [{
       url: 'http://203.0.113.10:25565/',
       name: 'My Server',
@@ -216,6 +221,8 @@ describe('Minecraft Classic heartbeat API', () => {
       response.headers.get('access-control-allow-origin'),
       'https://crosscraft.io',
     );
+    assert.equal(response.headers.get('access-control-allow-headers'), 'accept, content-type');
+    assert.equal(response.headers.get('access-control-max-age'), '600');
 
     response = await request(app, '/api/v1/list', {
       method: 'OPTIONS',
@@ -254,6 +261,7 @@ describe('API configuration', () => {
     assert.deepEqual(readTrustProxy(undefined), false);
     assert.equal(readTrustProxy('loopback'), 'loopback');
     assert.deepEqual(readTrustProxy('127.0.0.1,::1'), ['127.0.0.1', '::1']);
+    assert.deepEqual(readTrustProxy('10.11.0.0/16,10.0.1.0/24'), ['10.11.0.0/16', '10.0.1.0/24']);
     assert.deepEqual(readRateLimits({
       HEARTBEAT_RATE_LIMIT_PER_MINUTE: '4',
       LIST_RATE_LIMIT_PER_MINUTE: '9',
@@ -266,6 +274,60 @@ describe('API configuration', () => {
   it('rejects unsafe or malformed proxy configuration', () => {
     assert.throws(() => readTrustProxy('true'));
     assert.throws(() => readTrustProxy('not-an-ip'));
+    assert.throws(() => readTrustProxy('10.11.0.0/33'));
+    assert.throws(() => readTrustProxy('::1/128'));
     assert.throws(() => readRateLimits({ HEARTBEAT_RATE_LIMIT_PER_MINUTE: '0' }));
+  });
+});
+
+describe('trusted proxy resolution', () => {
+  function peerRequest(ip: string | undefined, forwardedFor?: string): Request {
+    const headers = forwardedFor === undefined
+      ? new Headers()
+      : new Headers({ 'x-forwarded-for': forwardedFor });
+    return { ip, headers } as unknown as Request;
+  }
+
+  it('uses the socket address when the peer is not a trusted proxy', () => {
+    const resolver = createClientIpResolver(['10.11.0.0/16']);
+    assert.equal(resolver(peerRequest('192.0.2.7', '203.0.113.99')), '192.0.2.7');
+    assert.equal(resolver(peerRequest('192.0.2.7')), '192.0.2.7');
+  });
+
+  it('resolves the rightmost untrusted forwarded address behind a trusted proxy', () => {
+    const resolver = createClientIpResolver(['10.11.0.0/16']);
+    assert.equal(resolver(peerRequest('10.11.0.7', '203.0.113.99')), '203.0.113.99');
+    assert.equal(resolver(peerRequest('10.11.0.7', '192.0.2.1, 203.0.113.99')), '203.0.113.99');
+  });
+
+  it('ignores unparseable forwarded entries while walking the chain', () => {
+    const resolver = createClientIpResolver(['10.11.0.0/16']);
+    assert.equal(resolver(peerRequest('10.11.0.7', 'not-an-ip, 203.0.113.99')), '203.0.113.99');
+  });
+
+  it('falls back to the socket address when every forwarded entry is trusted', () => {
+    const resolver = createClientIpResolver(['10.0.0.0/8']);
+    assert.equal(resolver(peerRequest('10.11.0.7', '10.11.0.7, 10.11.0.8')), '10.11.0.7');
+  });
+
+  it('matches IPv4-mapped socket addresses against IPv4 CIDRs', () => {
+    const resolver = createClientIpResolver(['10.11.0.0/16']);
+    assert.equal(resolver(peerRequest('::ffff:10.11.0.7', '203.0.113.99')), '203.0.113.99');
+  });
+
+  it('honors loopback-only trust', () => {
+    const resolver = createClientIpResolver('loopback');
+    assert.equal(resolver(peerRequest('127.0.0.1', '203.0.113.99')), '203.0.113.99');
+    assert.equal(resolver(peerRequest('10.11.0.7', '203.0.113.99')), '10.11.0.7');
+  });
+
+  it('honors exact IPv6 trusted proxies', () => {
+    const resolver = createClientIpResolver(['2001:DB8::1']);
+    assert.equal(resolver(peerRequest('2001:db8::1', '203.0.113.99')), '203.0.113.99');
+  });
+
+  it('never trusts forwarded data when trust is disabled', () => {
+    const resolver = createClientIpResolver(false);
+    assert.equal(resolver(peerRequest('10.11.0.7', '203.0.113.99')), '10.11.0.7');
   });
 });
